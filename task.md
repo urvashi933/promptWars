@@ -1,0 +1,9 @@
+- `[/]` 1. Initialize Vite React App in `promptWars` directory
+- `[ ]` 2. Set up advanced Vanilla CSS design system (tokens, dark mode, glassmorphism)
+- `[ ]` 3. Implement Simulation Engine (`useSimulation.js`)
+- `[ ]` 4. Build Live Stadium Heatmap Component (`Heatmap.jsx` & `Heatmap.css`)
+- `[ ]` 5. Build Queue & Wait Time Monitor Component (`QueueMonitor.jsx` & `QueueMonitor.css`)
+- `[ ]` 6. Build AI Routing & Alert Stream Component (`AlertStream.jsx` & `AlertStream.css`)
+- `[ ]` 7. Build Simulation Controller Component (`SimulationController.jsx` & `SimulationController.css`)
+- `[ ]` 8. Assemble Main Dashboard Layout (`App.jsx` & `App.css`)
+- `[ ]` 9. Verify the application runs smoothly and looks premium

@@ -1,0 +1,639 @@
+:root {
+  /* Cinematic Dark Theme Palette */
+  --color-bg-base: #030508;
+  --color-bg-panel: rgba(12, 16, 24, 0.7);
+  --color-border-subtle: rgba(255, 255, 255, 0.1);
+  --color-border-focus: rgba(102, 252, 241, 0.4);
+
+  --color-brand-primary: #5eead4;
+  /* Cyan/Teal */
+  --color-brand-secondary: #0ea5e9;
+  /* Blue */
+  --color-brand-accent: #f59e0b;
+  /* Amber/Orange for arrows/highlights */
+
+  --color-text-primary: #f8fafc;
+  --color-text-secondary: #cbd5e1;
+  --color-text-muted: #64748b;
+
+  /* Status Tokens */
+  --status-success: #10b981;
+  --status-warning: #f59e0b;
+  --status-critical: #ef4444;
+  --status-info: #3b82f6;
+
+  /* Typography */
+  --font-family-heading: 'Outfit', system-ui, sans-serif;
+  --font-family-base: 'Inter', system-ui, sans-serif;
+
+  /* Shadows & Glows */
+  --shadow-panel: 0 10px 40px rgba(0, 0, 0, 0.8), inset 0 1px 1px rgba(255, 255, 255, 0.05);
+  --glow-primary: 0 0 15px rgba(94, 234, 212, 0.3);
+  --glow-critical: 0 0 20px rgba(239, 68, 68, 0.5);
+  --glow-warning: 0 0 20px rgba(245, 158, 11, 0.4);
+
+  /* Motion */
+  --transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--color-bg-base);
+  color: var(--color-text-secondary);
+  font-family: var(--font-family-base);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  min-height: 100vh;
+  overflow-y: auto;
+  background-image:
+    radial-gradient(circle at 50% 50%, rgba(14, 165, 233, 0.05) 0%, transparent 60%),
+    linear-gradient(to bottom, #050810, #010204);
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-family-heading);
+  color: var(--color-text-primary);
+}
+
+/* Background City/Stadium Lights Illusion */
+body::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 80vw;
+  height: 80vh;
+  background: radial-gradient(ellipse at center, rgba(245, 158, 11, 0.05) 0%, transparent 70%);
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* Main Layout Grid */
+.dashboard-container {
+  display: grid;
+  grid-template-columns: 340px 1fr 340px;
+  grid-template-rows: auto auto auto;
+  gap: 16px;
+  height: auto;
+  /* Change from 100vh to auto to allow the container to grow */
+  padding-bottom: 50px;
+  /* Add padding so the bottom isn't cut off when scrolling */
+  max-width: 1920px;
+  margin: 0 auto;
+}
+
+/* Header Area */
+.header {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.logo {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--color-text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  letter-spacing: -0.02em;
+}
+
+.logo span {
+  color: var(--color-text-muted);
+  font-weight: 400;
+  font-size: 1.2rem;
+}
+
+/* ===== TOP STATS BAR ===== */
+.top-stats-bar {
+  grid-column: 1 / -1;
+  grid-row: 2;
+
+  display: flex;
+  align-items: center;
+  gap: 26px;
+
+  padding: 12px 18px;
+
+  background: linear-gradient(to right,
+      rgba(10, 14, 22, 0.95),
+      rgba(12, 16, 24, 0.85));
+
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 6px;
+
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+
+  box-shadow:
+    0 6px 30px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+/* ===== STAT GROUP ===== */
+.stat-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+
+  position: relative;
+  transition: 0.2s ease;
+}
+
+.stat-group:hover {
+  transform: translateY(-1px);
+}
+
+/* ICON */
+.stat-group i {
+  color: var(--color-brand-primary);
+  font-size: 1.15rem;
+  opacity: 0.9;
+}
+
+/* VALUE */
+.stat-value {
+  color: var(--color-text-primary);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  transition: 0.3s ease;
+}
+
+/* subtle glow on hover */
+.stat-group:hover .stat-value {
+  color: var(--color-brand-primary);
+}
+
+/* ===== DIVIDER ===== */
+.stat-divider {
+  width: 1px;
+  height: 18px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* ===== STATUS ALERT BASE ===== */
+.status-alert {
+  margin-left: auto;
+
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  padding: 6px 14px;
+
+  font-weight: 600;
+  color: var(--color-text-primary);
+
+  border-left: 3px solid;
+  border-radius: 4px;
+
+  transition: all 0.3s ease;
+}
+
+/* ===== STATUS TYPES ===== */
+
+/* CRITICAL (RED) */
+.status-critical {
+  border-color: var(--status-critical);
+  background: linear-gradient(90deg,
+      rgba(239, 68, 68, 0.18),
+      rgba(239, 68, 68, 0.05));
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.25);
+}
+
+.status-critical i {
+  color: var(--status-critical);
+  animation: pulseAlert 1.2s infinite;
+}
+
+/* SUCCESS (GREEN) */
+.status-success {
+  border-color: var(--status-success);
+  background: linear-gradient(90deg,
+      rgba(16, 185, 129, 0.18),
+      rgba(16, 185, 129, 0.05));
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
+}
+
+.status-success i {
+  color: var(--status-success);
+}
+
+/* ALERT ANIMATION */
+@keyframes pulseAlert {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.4;
+  }
+}
+
+/* Cinematic Panels */
+.glass-panel {
+  background: var(--color-bg-panel);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 8px;
+  /* Sharper corners for tech look */
+  padding: 16px;
+  box-shadow: var(--shadow-panel);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: relative;
+  overflow: hidden;
+}
+
+.panel-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding-bottom: 8px;
+}
+
+.panel-title i {
+  font-size: 1.1rem;
+}
+
+/* Grid Columns */
+.left-column {
+  grid-column: 1;
+  grid-row: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.right-column {
+  grid-column: 3;
+  grid-row: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.center-view {
+  grid-column: 2;
+  grid-row: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+/* Custom Scrollbar for columns */
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+/* Wait Times List Container */
+.queue-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 155px;
+  /* Fits ~2 items perfectly */
+  overflow-y: auto;
+  padding-right: 8px;
+  /* Slightly more space for the scrollbar */
+  scrollbar-width: thin;
+  /* Firefox support */
+  scrollbar-color: var(--color-brand-primary) transparent;
+}
+
+/* Custom Scrollbar Styling */
+.queue-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.queue-list::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+.queue-list::-webkit-scrollbar-thumb {
+  background: var(--color-brand-primary);
+  border-radius: 4px;
+  box-shadow: 0 0 10px var(--color-brand-primary);
+  /* Adds a subtle neon glow */
+}
+
+/* Individual Queue Item */
+.queue-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 12px;
+  /* Balanced padding */
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.queue-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  /* Soft highlight, not overwhelming */
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateX(4px);
+  /* Subtle slide effect on hover */
+}
+
+.q-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.q-name {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  font-size: 0.9rem;
+}
+
+.q-avg {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Time display styling */
+.text-critical {
+  color: var(--status-critical);
+  font-weight: 700;
+}
+
+.text-warning {
+  color: var(--status-warning);
+  font-weight: 700;
+}
+
+.text-good {
+  color: var(--status-success);
+  font-weight: 700;
+}
+
+/* Alerts / AI Coordination */
+.alert-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-grow: 1;
+}
+
+.alert-item {
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.alert-item.critical {
+  background: linear-gradient(to right, rgba(239, 68, 68, 0.15), rgba(0, 0, 0, 0.4));
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.alert-icon {
+  font-size: 1.2rem;
+  margin-top: 2px;
+}
+
+.alert-item.critical .alert-icon {
+  color: var(--status-critical);
+}
+
+.alert-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.alert-title {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  font-size: 0.85rem;
+}
+
+.alert-desc {
+  font-size: 0.75rem;
+  font-style: italic;
+  color: var(--color-text-secondary);
+}
+
+/* Surge Pricing Panel */
+.surge-panel {
+  border-left: 2px solid var(--color-brand-accent);
+  padding: 10px 12px;
+  gap: 6px;
+}
+
+.surge-panel .panel-title {
+  padding-bottom: 4px;
+  font-size: 0.8rem;
+  border-bottom: none;
+}
+
+.surge-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.surge-icon {
+  font-size: 1.2rem;
+  color: var(--color-brand-accent);
+}
+
+.surge-text {
+  font-family: var(--font-family-heading);
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--color-text-primary);
+}
+
+.surge-text span {
+  color: var(--status-critical);
+}
+
+.surge-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding-top: 6px;
+}
+
+/* Controls Panel */
+.tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+}
+
+.tab {
+  padding: 4px 12px;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tab.active {
+  color: var(--color-text-primary);
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+.control-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.control-btn {
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--color-text-secondary);
+  padding: 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.control-btn i {
+  font-size: 1rem;
+  color: var(--status-success);
+  opacity: 0.3;
+}
+
+.control-btn.active {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--color-text-primary);
+}
+
+.control-btn.active i {
+  opacity: 1;
+}
+
+/* Stadium Heatmap Radar */
+.stadium-map {
+  width: 100%;
+  max-width: 900px;
+  filter: drop-shadow(0 0 40px rgba(10, 15, 30, 0.8));
+}
+
+.zone {
+  transition: fill 0.8s ease, stroke 0.3s ease;
+  stroke-width: 1px;
+}
+
+/* High Tech Colors */
+.fill-good {
+  fill: rgba(16, 185, 129, 0.15);
+  stroke: rgba(16, 185, 129, 0.4);
+}
+
+.fill-warning {
+  fill: rgba(245, 158, 11, 0.25);
+  stroke: rgba(245, 158, 11, 0.6);
+}
+
+.fill-critical {
+  fill: rgba(239, 68, 68, 0.4);
+  stroke: rgba(239, 68, 68, 0.8);
+}
+
+/* Overlaid Arrows & Labels (Simulating the image) */
+.overlay-label {
+  fill: #fff;
+  font-family: var(--font-family-heading);
+  font-size: 11px;
+  font-weight: 700;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+.overlay-box {
+  fill: rgba(12, 16, 24, 0.8);
+  stroke: rgba(255, 255, 255, 0.2);
+  stroke-width: 1;
+  rx: 4;
+}
+
+.route-arrow {
+  fill: none;
+  stroke: var(--color-brand-accent);
+  stroke-width: 3;
+  stroke-dasharray: 6 4;
+  animation: march 1s linear infinite;
+  filter: drop-shadow(0 0 5px var(--color-brand-accent));
+}
+
+@keyframes march {
+  to {
+    stroke-dashoffset: -10;
+  }
+}
+
+/* Helpers */
+.text-critical {
+  color: var(--status-critical);
+}

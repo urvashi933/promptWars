@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VenueFlow | Smart Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Outfit:wght@400;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.0/vanilla-tilt.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://unpkg.com/prop-types/prop-types.min.js"></script>
+</head>
+
+<body>
+    <div id="root"></div>
+    <script type="text/babel">
+        const { useState, useEffect, useCallback, useMemo } = React;
+
+        // --- Web Audio API Engine ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function useAudioEngine() {
+            const playTone = useCallback((frequency, type, duration, vol) => {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const osc = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+
+                osc.type = type;
+                osc.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+
+                gainNode.gain.setValueAtTime(vol, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+
+                osc.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            }, []);
+
+            const playClick = useCallback(() => playTone(800, 'sine', 0.1, 0.05), [playTone]);
+            const playAlert = useCallback(() => {
+                playTone(400, 'square', 0.2, 0.05);
+                setTimeout(() => playTone(600, 'square', 0.4, 0.05), 150);
+            }, [playTone]);
+
+            return { playClick, playAlert };
+        }
+
+        const ZONES = [
+            { id: 'gate-a', name: 'Gate 4', type: 'gate', capacity: 1500 },
+            { id: 'gate-b', name: 'Gate 2', type: 'gate', capacity: 1500 },
+            { id: 'concourse-1', name: 'Main Concourse', type: 'corridor', capacity: 4000 },
+            { id: 'sec-101', name: 'Lower Bowl West', type: 'seating', capacity: 3500 },
+            { id: 'sec-201', name: 'Lower Bowl East', type: 'seating', capacity: 3500 },
+        ];
+
+        const INITIAL_QUEUES = [
+            { id: 'food-a', name: 'Concession A', time: 18, trend: 'up', avg: 10 },
+            { id: 'rest-north', name: 'Restroom North', time: 12, trend: 'down', avg: 8 },
+            { id: 'gate-4', name: 'Gate 4 Entry', time: 25, trend: 'up', avg: 15 },
+        ];
+
+        function useSimulation(playAlert) {
+            const [zoneData, setZoneData] = useState(
+                ZONES.map(z => ({ ...z, currentLoad: Math.floor(Math.random() * (z.capacity * 0.5)) + (z.capacity * 0.3) }))
+            );
+            const [queues, setQueues] = useState(INITIAL_QUEUES);
+            const [alerts, setAlerts] = useState([
+                { id: Date.now(), title: 'System Online', text: 'Monitoring venue telemetry...', type: 'info', icon: 'ph-check-circle' }
+            ]);
+            const [activeEvents, setActiveEvents] = useState({
+                halftime: false, bottleneck: true, gateClosure: false,
+                concessionRush: false, restroomMaintenance: false, merchDrop: false,
+                vipArrival: false, emergencyExit: false, openOverflow: false
+            });
+
+            const addAlert = useCallback((title, text, type, icon) => {
+                setAlerts(prev => {
+                    // Prevent consecutive duplicate alerts
+                    if (prev.length > 0 && prev[0].title === title) return prev;
+                    if (type === 'critical' || type === 'warning') {
+                        if (playAlert) playAlert();
+                    }
+                    return [{ id: Date.now(), title, text, type, icon }, ...prev].slice(0, 8);
+                });
+            }, [playAlert]);
+
+            // Dynamically generate AI alerts based on active simulation events
+            useEffect(() => {
+                if (activeEvents.bottleneck) {
+                    addAlert('Reroute Traffic', 'Diverting incoming flow to Gate 2', 'warning', 'ph-arrows-split');
+                }
+                if (activeEvents.concessionRush) {
+                    addAlert('ALERT: Concession A', 'Overcapacity - Redirecting Crowd', 'critical', 'ph-warning');
+                }
+                if (activeEvents.restroomMaintenance) {
+                    addAlert('Optimize Staffing', 'Deploy additional maintenance staff', 'info', 'ph-users');
+                }
+                if (activeEvents.emergencyExit) {
+                    addAlert('CRITICAL: Evacuation', 'Initiating emergency routing protocols', 'critical', 'ph-warning-octagon');
+                }
+            }, [activeEvents, addAlert]);
+
+            const toggleEvent = (eventKey) => {
+                setActiveEvents(prev => ({ ...prev, [eventKey]: !prev[eventKey] }));
+            };
+
+            useEffect(() => {
+                const interval = setInterval(() => {
+                    setZoneData(prev => prev.map(zone => {
+                        let fluctuation = (Math.random() - 0.5) * (zone.capacity * 0.05);
+                        if (activeEvents.halftime) {
+                            if (zone.type === 'corridor') fluctuation += (zone.capacity * 0.08);
+                            if (zone.type === 'seating') fluctuation -= (zone.capacity * 0.1);
+                        }
+                        if (activeEvents.bottleneck && zone.id === 'gate-a') {
+                            fluctuation += (zone.capacity * 0.1);
+                        }
+                        return { ...zone, currentLoad: Math.max(0, Math.min(zone.capacity, zone.currentLoad + fluctuation)) };
+                    }));
+
+                    setQueues(prev => {
+                        const nextQueues = prev.map(q => {
+                            let change = Math.random() > 0.6 ? 1 : (Math.random() > 0.5 ? -1 : 0);
+                            if (activeEvents.halftime && q.id !== 'gate-4') change += 1;
+                            if (activeEvents.bottleneck && q.id === 'gate-4') change += 2;
+
+                            // New Tab Events
+                            if (activeEvents.concessionRush && q.id.includes('food')) change += 3;
+                            if (activeEvents.restroomMaintenance && q.id.includes('rest')) change += 4;
+                            if (activeEvents.emergencyExit) change -= 5; // Everyone leaves queues
+
+                            let newTime = Math.max(0, q.time + change);
+                            return { ...q, time: newTime, trend: newTime > q.time ? 'up' : newTime < q.time ? 'down' : 'stable' };
+                        });
+                        return nextQueues;
+                    });
+                }, 3000);
+                return () => clearInterval(interval);
+            }, [activeEvents]);
+
+            return { zoneData, queues, alerts, activeEvents, toggleEvent };
+        }
+
+        const AnimatedNumber = ({ value }) => {
+            const [displayValue, setDisplayValue] = useState(value);
+            useEffect(() => {
+                let startTimestamp = null;
+                const duration = 500;
+                const startValue = displayValue;
+                if (startValue === value) return;
+                const step = (timestamp) => {
+                    if (!startTimestamp) startTimestamp = timestamp;
+                    const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                    setDisplayValue(Math.floor(startValue + (value - startValue) * progress));
+                    if (progress < 1) window.requestAnimationFrame(step);
+                };
+                window.requestAnimationFrame(step);
+            }, [value, displayValue]);
+            return <span>{displayValue}</span>;
+        };
+
+        const TopStatsBar = ({ queues, zoneData }) => {
+
+            // ===== DATA LOGIC =====
+            const totalLoad =
+                zoneData.reduce((acc, curr) => acc + curr.currentLoad, 0) * 4.2;
+
+            const restQueues = queues.filter(q => q.id.includes('rest'));
+            const foodQueues = queues.filter(q => q.id.includes('food'));
+
+            const avgRest =
+                restQueues.length
+                    ? Math.round(restQueues.reduce((a, b) => a + b.time, 0) / restQueues.length)
+                    : 0;
+
+            const avgFood =
+                foodQueues.length
+                    ? Math.round(foodQueues.reduce((a, b) => a + b.time, 0) / foodQueues.length)
+                    : 0;
+
+            const isCongested = queues.some(q => q.time > 20);
+
+            // ===== STATUS CONFIG =====
+            const status = isCongested
+                ? {
+                    label: "High Congestion Alert",
+                    className: "status-critical",
+                    icon: "ph-fill ph-warning-circle",
+                }
+                : {
+                    label: "Optimal Flow",
+                    className: "status-success",
+                    icon: "ph-fill ph-check-circle",
+                };
+
+            return (<div className="top-stats-bar">
+                {/* ATTENDEES */}
+                <div className="stat-group">
+                    <i className="ph-fill ph-users"></i>
+                    <span>Attendees:</span>
+                    <span className="stat-value">
+                        <AnimatedNumber value={totalLoad} />
+                    </span>
+                </div>
+
+                <div className="stat-divider"></div>
+
+                {/* RESTROOM */}
+                <div className="stat-group">
+                    <i className="ph ph-clock"></i>
+                    <span>Avg Restroom:</span>
+                    <span className="stat-value">
+                        <AnimatedNumber value={avgRest} /> mins
+                    </span>
+                </div>
+
+                <div className="stat-divider"></div>
+
+                {/* FOOD */}
+                <div className="stat-group">
+                    <i className="ph-fill ph-hamburger"></i>
+                    <span>Avg Concession:</span>
+                    <span className="stat-value">
+                        <AnimatedNumber value={avgFood} /> mins
+                    </span>
+                </div>
+
+                {/* STATUS */}
+                <div className={`status-alert ${status.className}`}>
+                    <i className={status.icon}></i>
+                    <span>Status: {status.label}</span>
+                </div>
+
+            </div>
+
+            );
+        };
+        const WaitTimesPanel = ({ queues }) => (
+            <div className="glass-panel">
+                <div className="panel-title"><i className="ph-fill ph-caret-right"></i> Wait Times</div>
+                <div className="queue-list">
+                    {queues.map(q => {
+                        const colorClass = q.time > 20 ? 'text-critical' : q.time > 12 ? 'text-warning' : 'text-good';
+                        const icon = q.trend === 'up' ? 'ph-arrow-up' : q.trend === 'down' ? 'ph-arrow-down' : 'ph-minus';
+                        return (
+                            <div key={q.id} className="queue-item">
+                                <div className="q-main">
+                                    <span className="q-name">{q.name} - <span className={colorClass}><AnimatedNumber value={q.time} />{q.time > 24 ? '+' : ''} mins <i className={`ph-bold ${icon}`}></i></span></span>
+                                    <span className="q-avg"><i className="ph-bold ph-check-circle text-good"></i> Avg: {q.avg} mins</span>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        );
+
+        const SurgePricingPanel = () => (
+            <div className="glass-panel surge-panel">
+                <div className="panel-title"><i className="ph-fill ph-circle"></i> Surge Pricing</div>
+                <div className="surge-content">
+                    <i className="ph-fill ph-hamburger surge-icon"></i>
+                    <div className="surge-text">Stand 5: <span>15%</span> Off Snacks</div>
+                </div>
+                <div className="surge-meta">
+                    <span>Ends in: <strong className="text-good">12 mins</strong></span>
+                    <span>Est. Impact: <strong className="text-good">20%</strong></span>
+                </div>
+            </div>
+        );
+
+        const ControlsPanel = ({ activeEvents, toggleEvent, playClick }) => {
+            const [activeTab, setActiveTab] = useState('congestion');
+
+            const handleTab = (tab) => {
+                setActiveTab(tab);
+                playClick();
+            };
+
+            const handleToggle = (evt) => {
+                toggleEvent(evt);
+                playClick();
+            };
+
+            return (
+                <div className="glass-panel">
+                    <div className="panel-title">
+                        <i className="ph-fill ph-circle"></i> Simulation & Controls
+                        <i className="ph-fill ph-gear" style={{ marginLeft: 'auto' }}></i>
+                    </div>
+                    <div className="tabs">
+                        <div className={`tab ${activeTab === 'congestion' ? 'active' : ''}`} onClick={() => handleTab('congestion')}>Congestion</div>
+                        <div className={`tab ${activeTab === 'waittimes' ? 'active' : ''}`} onClick={() => handleTab('waittimes')}>Wait Times</div>
+                        <div className={`tab ${activeTab === 'routing' ? 'active' : ''}`} onClick={() => handleTab('routing')}>Routing</div>
+                    </div>
+
+                    <div className="control-grid">
+                        {activeTab === 'congestion' && (
+                            <>
+                                <div className={`control-btn ${activeEvents.halftime ? 'active' : ''}`} onClick={() => handleToggle('halftime')}>
+                                    <i className={`ph-bold ${activeEvents.halftime ? 'ph-check' : 'ph-circle'}`}></i> Halftime Rush
+                                </div>
+                                <div className={`control-btn ${activeEvents.bottleneck ? 'active' : ''}`} onClick={() => handleToggle('bottleneck')}>
+                                    <i className={`ph-bold ${activeEvents.bottleneck ? 'ph-check' : 'ph-circle'}`}></i> Entry Bottleneck
+                                </div>
+                                <div className={`control-btn ${activeEvents.gateClosure ? 'active' : ''}`} onClick={() => handleToggle('gateClosure')}>
+                                    <i className={`ph-bold ${activeEvents.gateClosure ? 'ph-check' : 'ph-circle'}`}></i> Gate Closure
+                                </div>
+                            </>
+                        )}
+
+                        {activeTab === 'waittimes' && (
+                            <>
+                                <div className={`control-btn ${activeEvents.concessionRush ? 'active' : ''}`} onClick={() => handleToggle('concessionRush')}>
+                                    <i className={`ph-bold ${activeEvents.concessionRush ? 'ph-check' : 'ph-circle'}`}></i> Concessions Rush
+                                </div>
+                                <div className={`control-btn ${activeEvents.restroomMaintenance ? 'active' : ''}`} onClick={() => handleToggle('restroomMaintenance')}>
+                                    <i className={`ph-bold ${activeEvents.restroomMaintenance ? 'ph-check' : 'ph-circle'}`}></i> Restroom Maint.
+                                </div>
+                                <div className={`control-btn ${activeEvents.merchDrop ? 'active' : ''}`} onClick={() => handleToggle('merchDrop')}>
+                                    <i className={`ph-bold ${activeEvents.merchDrop ? 'ph-check' : 'ph-circle'}`}></i> Exclusive Merch
+                                </div>
+                            </>
+                        )}
+
+                        {activeTab === 'routing' && (
+                            <>
+                                <div className={`control-btn ${activeEvents.vipArrival ? 'active' : ''}`} onClick={() => handleToggle('vipArrival')}>
+                                    <i className={`ph-bold ${activeEvents.vipArrival ? 'ph-check' : 'ph-circle'}`}></i> VIP Arrival
+                                </div>
+                                <div className={`control-btn ${activeEvents.emergencyExit ? 'active' : ''}`} onClick={() => handleToggle('emergencyExit')}>
+                                    <i className={`ph-bold ${activeEvents.emergencyExit ? 'ph-check' : 'ph-circle'}`}></i> Evac Protocol
+                                </div>
+                                <div className={`control-btn ${activeEvents.openOverflow ? 'active' : ''}`} onClick={() => handleToggle('openOverflow')}>
+                                    <i className={`ph-bold ${activeEvents.openOverflow ? 'ph-check' : 'ph-circle'}`}></i> Open Overflow
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const AlertsPanel = ({ alerts }) => (
+            <div className="glass-panel" style={{ flexGrow: 1 }}>
+                <div className="panel-title" style={{ justifyContent: 'space-between' }}>
+                    <span>AI Coordination & Alerts</span>
+                    <i className="ph-fill ph-chat-centered-text"></i>
+                </div>
+                <div className="alert-list">
+                    {alerts.map(a => (
+                        <div key={a.id} className={`alert-item ${a.type === 'critical' ? 'critical' : ''}`}>
+                            <i className={`ph-fill ${a.icon} alert-icon`}></i>
+                            <div className="alert-content">
+                                <span className="alert-title" style={{ color: a.type === 'critical' ? 'var(--status-critical)' : '' }}>{a.title}</span>
+                                <span className="alert-desc">{a.text}</span>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+
+        const Heatmap = ({ zoneData, activeEvents, playClick }) => {
+            const [compareMode, setCompareMode] = useState(false);
+
+            const getZoneStyle = (zoneId) => {
+                const zone = zoneData.find(z => z.id === zoneId);
+                if (!zone) return 'fill-good';
+                const ratio = zone.currentLoad / zone.capacity;
+                if (ratio > 0.8) return 'fill-critical';
+                if (ratio > 0.5) return 'fill-warning';
+                return 'fill-good';
+            };
+
+            const toggleCompare = () => {
+                setCompareMode(!compareMode);
+                if (playClick) playClick();
+            };
+
+            const StadiumSVG = ({ isHistorical }) => (
+                <svg viewBox="0 0 600 400" className="stadium-map" style={{ filter: isHistorical ? 'grayscale(0.6) opacity(0.8)' : 'drop-shadow(0 0 40px rgba(10, 15, 30, 0.8))' }}>
+                    <defs>
+                        <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                            <feGaussianBlur stdDeviation="4" result="blur" />
+                            <feMerge>
+                                <feMergeNode in="blur" />
+                                <feMergeNode in="SourceGraphic" />
+                            </feMerge>
+                        </filter>
+                    </defs>
+
+                    <ellipse cx="300" cy="200" rx="280" ry="180" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="20" />
+                    <ellipse cx="300" cy="200" rx="250" ry="150" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="4" />
+                    <rect x="220" y="140" width="160" height="120" fill="rgba(16, 185, 129, 0.1)" stroke="rgba(255,255,255,0.2)" rx="5" />
+
+                    <path className={`zone ${isHistorical ? 'fill-good' : getZoneStyle('sec-101')}`} d="M 50 200 C 50 100 150 50 300 50 L 300 120 C 180 120 120 150 120 200 Z" filter="url(#glow)" />
+                    <path className={`zone ${isHistorical ? 'fill-critical' : getZoneStyle('sec-201')}`} d="M 550 200 C 550 100 450 50 300 50 L 300 120 C 420 120 480 150 480 200 Z" filter="url(#glow)" />
+                    <path className={`zone ${isHistorical ? 'fill-warning' : getZoneStyle('concourse-1')}`} d="M 50 200 C 50 300 150 350 300 350 L 300 280 C 180 280 120 250 120 200 Z" filter="url(#glow)" />
+                    <path className={`zone ${isHistorical ? 'fill-good' : getZoneStyle('sec-101')}`} d="M 550 200 C 550 300 450 350 300 350 L 300 280 C 420 280 480 250 480 200 Z" filter="url(#glow)" />
+
+                    <g transform="translate(180, 80)">
+                        <rect x="0" y="0" width="60" height="24" className="overlay-box" />
+                        <text x="30" y="16" textAnchor="middle" className="overlay-label">Gate 4</text>
+                    </g>
+
+                    <g transform="translate(380, 100)">
+                        <rect x="0" y="0" width="60" height="24" className="overlay-box" />
+                        <text x="30" y="16" textAnchor="middle" className="overlay-label">Gate 2</text>
+                    </g>
+
+                    <g transform="translate(150, 200)">
+                        <rect x="0" y="0" width="80" height="24" className="overlay-box" />
+                        <circle cx="12" cy="12" r="6" fill={!isHistorical && activeEvents.concessionRush ? "var(--status-critical)" : "var(--status-success)"} />
+                        <text x="50" y="16" textAnchor="middle" className="overlay-label">Concession</text>
+                    </g>
+
+                    {!isHistorical && activeEvents.concessionRush && (
+                        <g transform="translate(140, 165)">
+                            <rect x="0" y="0" width="100" height="20" fill="rgba(16, 185, 129, 0.2)" stroke="var(--status-success)" rx="4" />
+                            <text x="50" y="14" textAnchor="middle" fill="var(--status-success)" fontSize="10" fontWeight="700" style={{ textShadow: '0 0 8px rgba(16,185,129,0.5)' }}>
+                                + Deploying Staff
+                            </text>
+                            <path d="M 50 20 L 50 30" stroke="var(--status-success)" strokeWidth="2" strokeDasharray="2 2" />
+                        </g>
+                    )}
+
+                    <g transform="translate(400, 220)">
+                        <rect x="0" y="0" width="80" height="24" className="overlay-box" />
+                        <circle cx="12" cy="12" r="6" fill={!isHistorical && activeEvents.restroomMaintenance ? "var(--status-critical)" : "var(--status-success)"} />
+                        <text x="40" y="16" textAnchor="middle" className="overlay-label">Restrooms</text>
+                    </g>
+
+                    {!isHistorical && activeEvents.restroomMaintenance && (
+                        <g transform="translate(390, 185)">
+                            <rect x="0" y="0" width="100" height="20" fill="rgba(59, 130, 246, 0.2)" stroke="var(--status-info)" rx="4" />
+                            <text x="50" y="14" textAnchor="middle" fill="var(--status-info)" fontSize="10" fontWeight="700" style={{ textShadow: '0 0 8px rgba(59,130,246,0.5)' }}>
+                                + Janitorial Crew
+                            </text>
+                            <path d="M 50 20 L 50 30" stroke="var(--status-info)" strokeWidth="2" strokeDasharray="2 2" />
+                        </g>
+                    )}
+
+                    {!isHistorical && activeEvents.bottleneck && (
+                        <g>
+                            <path d="M 210 104 Q 280 150 260 210" className="route-arrow" markerEnd="url(#arrowhead)" />
+                            <path d="M 400 124 Q 340 160 380 210" className="route-arrow" style={{ stroke: 'var(--status-success)' }} markerEnd="url(#arrowhead)" />
+
+                            <g transform="translate(250, 130)">
+                                <rect x="0" y="0" width="90" height="20" fill="rgba(245, 158, 11, 0.2)" stroke="var(--color-brand-accent)" rx="4" />
+                                <text x="45" y="14" textAnchor="middle" fill="var(--color-brand-accent)" fontSize="10" fontWeight="700" style={{ textShadow: '0 0 8px rgba(245,158,11,0.5)' }}>
+                                    Rerouting Flow
+                                </text>
+                            </g>
+                        </g>
+                    )}
+
+                    <defs>
+                        <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                            <polygon points="0 0, 10 3.5, 0 7" fill="var(--color-brand-accent)" />
+                        </marker>
+                    </defs>
+                </svg>
+            );
+
+            return (
+                <div className="center-view" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', width: '100%', paddingRight: '16px' }}>
+                        <div className={`control-btn ${compareMode ? 'active' : ''}`} onClick={toggleCompare} style={{ width: 'fit-content', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                            <i className="ph-bold ph-chart-bar"></i> Historical Compare
+                        </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '16px', width: '100%', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                        <div style={{ flex: 1, position: 'relative', maxWidth: compareMode ? '50%' : '100%', transition: 'max-width 0.5s ease' }}>
+                            {compareMode && <div style={{ position: 'absolute', top: -30, left: '50%', transform: 'translateX(-50%)', fontWeight: 'bold', color: 'var(--color-brand-primary)' }}>Live Data (Today)</div>}
+                            <StadiumSVG isHistorical={false} />
+                        </div>
+
+                        {compareMode && (
+                            <div style={{ flex: 1, position: 'relative', maxWidth: '50%' }}>
+                                <div style={{ position: 'absolute', top: -30, left: '50%', transform: 'translateX(-50%)', fontWeight: 'bold', color: 'var(--color-text-muted)' }}>Historical (Yesterday)</div>
+                                <StadiumSVG isHistorical={true} />
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const { playClick, playAlert } = useAudioEngine();
+            const { zoneData, queues, alerts, activeEvents, toggleEvent } = useSimulation(playAlert);
+
+            useEffect(() => {
+                // Initialize 3D Glass Tilt Effect on the panels
+                if (window.VanillaTilt) {
+                    VanillaTilt.init(document.querySelectorAll(".glass-panel"), {
+                        max: 2,
+                        speed: 400,
+                        glare: true,
+                        "max-glare": 0.1,
+                    });
+                }
+
+                // GSAP Entrance Animations
+                if (window.gsap) {
+                    gsap.fromTo(".header, .top-stats-bar",
+                        { y: -30, opacity: 0 },
+                        { y: 0, opacity: 1, duration: 0.8, stagger: 0.1, ease: "power3.out" }
+                    );
+                    gsap.fromTo(".left-column > .glass-panel",
+                        { x: -30, opacity: 0 },
+                        { x: 0, opacity: 1, duration: 0.8, stagger: 0.15, ease: "power3.out", delay: 0.2 }
+                    );
+                    gsap.fromTo(".center-view",
+                        { scale: 0.95, opacity: 0 },
+                        { scale: 1, opacity: 1, duration: 1, ease: "power2.out", delay: 0.4 }
+                    );
+                    gsap.fromTo(".right-column > .glass-panel",
+                        { x: 30, opacity: 0 },
+                        { x: 0, opacity: 1, duration: 0.8, ease: "power3.out", delay: 0.4 }
+                    );
+                }
+            }, []);
+
+            return (
+                <div className="dashboard-container">
+                    <header className="header">
+                        <div className="logo">
+                            <i className="ph-bold ph-waves" style={{ color: 'var(--color-brand-primary)' }}></i>
+                            VenueFlow <span>Smart Dashboard</span>
+                        </div>
+                    </header>
+
+                    <TopStatsBar queues={queues} zoneData={zoneData} />
+
+                    <div className="left-column">
+                        <WaitTimesPanel queues={queues} />
+                        <SurgePricingPanel />
+                        <ControlsPanel activeEvents={activeEvents} toggleEvent={toggleEvent} playClick={playClick} />
+                    </div>
+
+                    <Heatmap zoneData={zoneData} activeEvents={activeEvents} playClick={playClick} />
+
+                    <div className="right-column">
+                        <AlertsPanel alerts={alerts} />
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+
+</html>
